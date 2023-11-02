@@ -4,6 +4,7 @@
 #pragma once
 
 #include <vk_types.h>
+#include <vector>
 
 class VulkanEngine {
 public:
@@ -26,4 +27,24 @@ public:
 
 	//run main loop
 	void run();
+
+	// Vulkan Handles
+	VkInstance _instance; // Vulkan library handle
+	VkDebugUtilsMessengerEXT _debug_messenger; // Vulkan debug output handle
+	VkPhysicalDevice _chosenGPU; // GPU chosen as the default device
+	VkDevice _device; // Vulkan device for commands
+	VkSurfaceKHR _surface; // Vulkan window surface
+
+	// Swapchain members
+	// Can read about swapchain types here https://vkguide.dev/docs/chapter-1/vulkan_init_flow/
+	VkSwapchainKHR _swapchain; 
+	VkFormat _swapchainImageFormat; // image format expected by the windowing system
+	std::vector<VkImage> _swapchainImages; // array of images from the swapchain
+	std::vector<VkImageView> _swapchainImageViews; // array of image views from the swapchain
+
+private:
+	// Setup vulkan handles 
+	void init_vulkan();
+	// Setup swapchain
+	void init_swapchain();
 };
