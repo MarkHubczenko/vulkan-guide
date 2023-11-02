@@ -1,2 +1,4 @@
 /build
 /bin
+/out/build/x64-Debug
+/.vs
