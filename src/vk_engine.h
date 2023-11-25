@@ -42,9 +42,20 @@ public:
 	std::vector<VkImage> _swapchainImages; // array of images from the swapchain
 	std::vector<VkImageView> _swapchainImageViews; // array of image views from the swapchain
 
+	// Commands members
+	// Command flow https://vkguide.dev/docs/chapter-1/vulkan_command_flow/ 
+	VkQueue _graphicsQueue; // Queue we will submit to
+	uint32_t _graphicsQueueFamily; // Family of that queue
+
+	VkCommandPool _commandPool; // The command pool for our commands
+	// Read about command buffers here https://registry.khronos.org/vulkan/specs/1.2-extensions/html/chap6.html#commandbuffers-lifecycle 
+	VkCommandBuffer _mainCommandBuffer; // The Buffer we will record into
+
 private:
 	// Setup vulkan handles 
 	void init_vulkan();
 	// Setup swapchain
 	void init_swapchain();
+	// Setup commands
+	void init_commands();
 };
