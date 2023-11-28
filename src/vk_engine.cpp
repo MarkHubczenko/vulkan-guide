@@ -16,14 +16,14 @@
 // we want to immediately abort when there is an error. 
 // In normal engines this would give an error message to the user, or perform a dump of state.
 #define VK_CHECK(x)													\
-{																	\
+do {																	\
 	VkResult err = x;												\
 	if (err)														\
 	{																\
 		std::cout << "Detected Vulkan error: " << err << std::endl;	\
 		abort();													\
 	}																\
-}
+} while(0)
 
 void VulkanEngine::init()
 {
@@ -50,6 +50,16 @@ void VulkanEngine::init()
 	// create the command related members
 	init_commands();
 
+	// IMPORTANT
+	// We need to create the renderpass BEFORE the framebuffers, 
+	// because the framebuffers are created for a specific renderpass.
+
+	// create default renderpass
+	init_default_renderpass();
+
+	// create frame buffers
+	init_framebuffers();
+
 	//everything went fine
 	_isInitialized = true;
 }
@@ -67,10 +77,14 @@ void VulkanEngine::cleanup()
 		// In some cases, if you know what you are doing, the order can be changed a bit and it will be fine, 
 		// but destroying the objects in reverse order is an easy way to have it work.
 		vkDestroySwapchainKHR(_device, _swapchain, nullptr);
+		
+		//destroy the main renderpass
+		vkDestroyRenderPass(_device, _renderPass, nullptr);
 
 		// destroy swapchain resources
 		for (int i = 0; i < _swapchainImageViews.size(); i++)
 		{
+			vkDestroyFramebuffer(_device, _framebuffers[i], nullptr);
 			vkDestroyImageView(_device, _swapchainImageViews[i], nullptr);
 		}
 		
@@ -209,4 +223,89 @@ void VulkanEngine::init_commands()
 
 	VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_mainCommandBuffer));
 }
+
+void VulkanEngine::init_default_renderpass()
+{
+	// The color attachment is the description of the image we will be writing into with rendering commands
+	// the renderpass will use this color attachment.
+	VkAttachmentDescription color_attachment = {};
+	// the attachment will have hte format need by the swapchain
+	color_attachment.format = _swapchainImageFormat;
+	// 1 sample, we won't be doing MSAA (Multi-Sample Anti-Aliasing)
+	color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	// We clear when this attachment is loaded
+	color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	// We keep the attachment stored when the renderpass ends
+	color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	// we don't care about stencil
+	color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+	// we don't know or care about the starting layout of the attachment
+	color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+	// after the renderpass ends, the image has to be on a layout ready for display
+	color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+
+	// Now that our main image target is defined, we need to add a subpass that will render into it. 
+	// This goes right after defining the attachment
+
+	VkAttachmentReference color_attachment_ref = {};
+	// attachment number will index into the pAttachments array in the parent renderpass itself
+	color_attachment_ref.attachment = 0;
+	color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	//we are going to create 1 subpass, which is the minimum you can do
+	VkSubpassDescription subpass = {};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &color_attachment_ref;
+
+	// The image life will follow something like this
+	// UNDEFINED -> RenderPass Begins -> Subpass 0 begins (Transition to Attachment Optimal) 
+	// -> Subpass 0 renders -> Subpass 0 ends -> Renderpass Ends (Transitions to Present Source) 
+
+	// The Vulkan driver will perform the layout transitions for us when using the renderpass. 
+	// If we weren’t using a renderpass (drawing from compute shaders) we would need to do the same transitions explicitly.
+
+	// Now that the main attachment and the subpass is done, we can create the renderpass
+	VkRenderPassCreateInfo render_pass_info = {};
+	render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+
+	//connect the color attachment to the info
+	render_pass_info.attachmentCount = 1;
+	render_pass_info.pAttachments = &color_attachment;
+	//connect the subpass to the info
+	render_pass_info.subpassCount = 1;
+	render_pass_info.pSubpasses = &subpass;
+
+	VK_CHECK(vkCreateRenderPass(_device, &render_pass_info, nullptr, &_renderPass));
+}
+
+void VulkanEngine::init_framebuffers()
+{
+	//create the framebuffers for the swapchain images. This will connect the render-pass to the images for rendering
+	VkFramebufferCreateInfo fb_info = {};
+	fb_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	fb_info.pNext = nullptr;
+
+	fb_info.renderPass = _renderPass;
+	fb_info.attachmentCount = 1;
+	fb_info.width = _windowExtent.width;
+	fb_info.height = _windowExtent.height;
+	fb_info.layers = 1;
+
+	//grab how many images we have in the swapchain
+	const uint32_t swapchain_imagecount = (uint32_t)_swapchainImages.size();
+	_framebuffers = std::vector<VkFramebuffer>((uint32_t)swapchain_imagecount);
+
+	//create framebuffers for each of the swapchain image views
+	for (uint32_t i = 0; i < swapchain_imagecount; i++) {
+
+		fb_info.pAttachments = &_swapchainImageViews[i];
+		VK_CHECK(vkCreateFramebuffer(_device, &fb_info, nullptr, &_framebuffers[i]));
+	}
+}
+
 

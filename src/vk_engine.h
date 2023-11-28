@@ -51,6 +51,10 @@ public:
 	// Read about command buffers here https://registry.khronos.org/vulkan/specs/1.2-extensions/html/chap6.html#commandbuffers-lifecycle 
 	VkCommandBuffer _mainCommandBuffer; // The Buffer we will record into
 
+	// Vk Renderpass (The render pass renders into a framebuffer, while the framebuffer links to the images you will render to)
+	VkRenderPass _renderPass;
+	std::vector<VkFramebuffer> _framebuffers;
+
 private:
 	// Setup vulkan handles 
 	void init_vulkan();
@@ -58,4 +62,8 @@ private:
 	void init_swapchain();
 	// Setup commands
 	void init_commands();
+	// Setup render pass
+	void init_default_renderpass();
+	// Setup  frame buffers
+	void init_framebuffers();
 };
