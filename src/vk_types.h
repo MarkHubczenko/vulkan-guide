@@ -29,3 +29,33 @@
             abort();                                                    \
         }                                                               \
     } while (0)
+
+
+// TODO - make this it is own class when I setup my own project
+// I'd like to make a generic lib for helper classes
+struct DeletionQueue
+{
+	std::deque<std::function<void()>> deletors;
+
+	void PushFunction(std::function<void()>&& function) {
+		deletors.push_back(function);
+	}
+
+	void Flush() {
+		// reverse iterate the deletion queue to execute all the functions
+		for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
+			(*it)(); //call functors
+		}
+
+		deletors.clear();
+	}
+};
+
+struct AllocatedImage
+{
+	VkImage image;
+	VkImageView imageView;
+	VmaAllocation allocation;
+	VkExtent3D imageExtent;
+	VkFormat imageFormat;
+};

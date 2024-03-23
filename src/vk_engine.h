@@ -5,12 +5,15 @@
 
 #include <vk_types.h>
 
+
+
 struct FrameData {
 
 	VkCommandPool mCommandPool;
 	VkCommandBuffer mMainCommandBuffer;
 	VkSemaphore mSwapchainSemaphore, mRenderSemaphore;
 	VkFence mRenderFence;
+	DeletionQueue mDeletionQueue;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -62,6 +65,15 @@ public:
 	VkQueue mGraphicsQueue;
 	uint32_t mGraphicsQueueFamily;
 
+	DeletionQueue mMainDeletionQueue;
+	
+	// Allocator
+	VmaAllocator mAllocator;
+
+	// Draw resources
+	AllocatedImage mDrawImage;
+	VkExtent2D mDrawExtent;
+
 private:
 	void InitVulkan();
 	
@@ -72,5 +84,5 @@ private:
 	void InitCommands();
 	void InitSyncStructures();
 
-
+	void DrawBackground(VkCommandBuffer cmd);
 };
